@@ -4,18 +4,18 @@ require('dotenv').config();
 const iata = require('./data');
 
 const BASE_URL = process.env.BASE_URL;
-const DEPARTURE_DATE_START = '2023-09-30';
+const DEPARTURE_DATE_START = '2023-09-28';
 const DEPARTURE_DATE_END = '2023-10-16';
-const BUDGET = 400;
+const BUDGET = 440;
 
 let ACCESS_TOKEN = '';
 
-const getNextDate = (date) => {
+const getNextDate = (date, daysToSkip = 1) => {
   // format date to YYYY-MM-DD
   const [year, month, day] = date.split('-');
 
   const nextDate = new Date(year, month - 1, day);
-  nextDate.setDate(nextDate.getDate() + 1);
+  nextDate.setDate(nextDate.getDate() + daysToSkip);
 
   const nextYear = nextDate.getFullYear();
   const nextMonth = `${(nextDate.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -119,8 +119,58 @@ const checkFlightsForSpecificOptions = async (origin, destination, departureDate
   // console.log('flightOffersData:', flightOffersData);
 }
 
+const checkFlightsForSpecificOptionsByPost = async (origin, destination, departureDate) => {
+  const data = {
+    currencyCode: "EUR",
+    originDestinations: [
+      {
+        id: "1",
+        originLocationCode: origin,
+        destinationLocationCode: destination,
+        departureDateTimeRange: {
+          date: departureDate,
+          dateWindow: "P3D"
+        }
+      }
+    ],
+    travelers: [
+      {
+        id: "1",
+        travelerType: "ADULT",
+        fareOptions: [
+          "STANDARD"
+        ]
+      }
+    ],
+    sources: [
+      "GDS"
+    ],
+    searchCriteria: {
+      maxFlightOffers: "1",
+      // maxPrice: BUDGET
+    }
+  }
+
+  const flightOffers = await axios.post(`${BASE_URL}/v2/shopping/flight-offers`, data, {
+    headers: {
+      ContentType: 'application/json',
+      Authorization: `Bearer ${ACCESS_TOKEN}`
+    }
+  })
+
+  return flightOffers.data.data
+  // console.log('flight date', flightOffers.data.data[0].lastTicketingDate)
+  // console.log('flight price', flightOffers.data.data[0].price.grandTotal)
+  // console.log('flightOffersData:', formatItinerary(flightOffers.data.data[0].itineraries));
+}
+
 const launchScript = async () => {
-  ACCESS_TOKEN = await getAccessToken()
+  console.log('start');
+  ACCESS_TOKEN = await getAccessToken();
+  // console.log('ACCESS_TOKEN:', ACCESS_TOKEN);
+  // await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', DEPARTURE_DATE_START);
+  // return;
+
   // wait 200ms before next request
   await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -128,28 +178,35 @@ const launchScript = async () => {
   // for each day, check flights from PAR to CNX
   let date = DEPARTURE_DATE_START;
   do {
-    console.log('date', date);
-    const flights = await checkFlightsForSpecificOptions('PAR', 'CNX', DEPARTURE_DATE_START);
+    // console.log('date', date);
+    const flights = await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', DEPARTURE_DATE_START);
     const flightsOnBudget = getFlightsUnderBudget(flights);
     if (!flightsOnBudget.length) {
-      date = getNextDate(date);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      date = getNextDate(date ,3);
+      await new Promise(resolve => setTimeout(resolve, 100));
       continue;
     }
     for (const flight of flightsOnBudget) {
-      console.log('date', date)
+      console.log('date', flight.lastTicketingDate)
       console.log('price', flight.price.grandTotal);
       console.log(formatItinerary(flight.itineraries));
       console.log('-------------------', '\n');
-    }
-    date = getNextDate(date);
 
-    // wait 200ms before next request
-    await new Promise(resolve => setTimeout(resolve, 200));
+      // TODO: send webhook to zapier
+      await axios.post(ZAPIER_WEBHOOK_URL, {
+        date: flight.lastTicketingDate,
+        price: flight.price.grandTotal,
+        itinerary: formatItinerary(flight.itineraries),
+      })
+    }
+    date = getNextDate(date, 3);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
   } while (date !== DEPARTURE_DATE_END)
 
   console.log('end');
-  process.exit();
 }
 
-launchScript();
+module.exports = {
+  launchScript,
+}

@@ -30,6 +30,7 @@ const iataCodesToCity = {
   "JED": "Jeddah",
   "RUH": "Riyadh",
   "KWI": "Kuwait City",
+  "MCT": "Muscat",
   // US
   "JFK": "New York JFK",
   "EWR": "New York Newark",
