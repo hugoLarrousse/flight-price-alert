@@ -1,12 +1,11 @@
-
 const axios = require('axios');
 require('dotenv').config();
 const iata = require('./data');
 
 const BASE_URL = process.env.BASE_URL;
-const DEPARTURE_DATE_START = '2023-09-28';
-const DEPARTURE_DATE_END = '2023-10-16';
-const BUDGET = 440;
+const DEPARTURE_START_DATE = '2023-09-28';
+const DEPARTURE_END_DATE = '2023-10-16';
+const BUDGET = process.env.BUDGET || 440;
 
 let ACCESS_TOKEN = '';
 
@@ -176,10 +175,10 @@ const launchScript = async () => {
 
   // for the date range: 2023-09-28 to 2023-10-14
   // for each day, check flights from PAR to CNX
-  let date = DEPARTURE_DATE_START;
+  let date = DEPARTURE_START_DATE;
   do {
     // console.log('date', date);
-    const flights = await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', DEPARTURE_DATE_START);
+    const flights = await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', DEPARTURE_START_DATE);
     const flightsOnBudget = getFlightsUnderBudget(flights);
     if (!flightsOnBudget.length) {
       date = getNextDate(date ,3);
@@ -202,7 +201,7 @@ const launchScript = async () => {
     date = getNextDate(date, 3);
 
     await new Promise(resolve => setTimeout(resolve, 100));
-  } while (date !== DEPARTURE_DATE_END)
+  } while (date !== DEPARTURE_END_DATE)
 
   console.log('end');
 }
