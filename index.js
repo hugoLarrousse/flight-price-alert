@@ -5,7 +5,7 @@ const iata = require('./data');
 const BASE_URL = process.env.BASE_URL;
 const DEPARTURE_START_DATE = '2023-09-28';
 const DEPARTURE_END_DATE = '2023-10-16';
-const BUDGET = process.env.BUDGET || 440;
+const BUDGET = process.env.BUDGET ? Number(process.env.BUDGET) : 440;
 
 let ACCESS_TOKEN = '';
 
