@@ -119,6 +119,9 @@ const checkFlightsForSpecificOptions = async (origin, destination, departureDate
 }
 
 const checkFlightsForSpecificOptionsByPost = async (origin, destination, departureDate) => {
+  console.log('departureDate:', departureDate);
+  console.log('destination:', destination);
+  console.log('origin:', origin);
   const data = {
     currencyCode: "EUR",
     originDestinations: [
@@ -145,8 +148,8 @@ const checkFlightsForSpecificOptionsByPost = async (origin, destination, departu
       "GDS"
     ],
     searchCriteria: {
-      maxFlightOffers: "1",
-      // maxPrice: BUDGET
+      maxFlightOffers: "5",
+      maxPrice: BUDGET
     }
   }
 
@@ -166,33 +169,39 @@ const checkFlightsForSpecificOptionsByPost = async (origin, destination, departu
 const launchScript = async () => {
   console.log('start');
   ACCESS_TOKEN = await getAccessToken();
+  console.log('BUDGET:', BUDGET);
+  console.log('DEPARTURE_START_DATE:', DEPARTURE_START_DATE);
+  console.log('DEPARTURE_END_DATE:', DEPARTURE_END_DATE);
   // console.log('ACCESS_TOKEN:', ACCESS_TOKEN);
   // await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', DEPARTURE_DATE_START);
   // return;
 
   // wait 200ms before next request
-  await new Promise(resolve => setTimeout(resolve, 200));
+  await new Promise(resolve => setTimeout(resolve, 100));
 
   // for the date range: 2023-09-28 to 2023-10-14
   // for each day, check flights from PAR to CNX
   let date = DEPARTURE_START_DATE;
   do {
-    // console.log('date', date);
-    const flights = await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', DEPARTURE_START_DATE);
+    console.log('date to check', date);
+    const flights = await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', date);
+    console.log('flights:', flights.length);
     const flightsOnBudget = getFlightsUnderBudget(flights);
+    console.log('flightsOnBudget:', flightsOnBudget.length);
     if (!flightsOnBudget.length) {
       date = getNextDate(date ,3);
       await new Promise(resolve => setTimeout(resolve, 100));
       continue;
     }
     for (const flight of flightsOnBudget) {
+      console.log('NEW FLIGHT FOUND !!');
       console.log('date', flight.lastTicketingDate)
       console.log('price', flight.price.grandTotal);
       console.log(formatItinerary(flight.itineraries));
       console.log('-------------------', '\n');
 
       // TODO: send webhook to zapier
-      await axios.post(ZAPIER_WEBHOOK_URL, {
+      await axios.post(process.env.ZAPIER_WEBHOOK_URL, {
         date: flight.lastTicketingDate,
         price: flight.price.grandTotal,
         itinerary: formatItinerary(flight.itineraries),
