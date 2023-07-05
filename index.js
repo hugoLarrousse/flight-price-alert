@@ -3,9 +3,11 @@ require('dotenv').config();
 const iata = require('./data');
 
 const BASE_URL = process.env.BASE_URL;
-const DEPARTURE_START_DATE = '2023-09-28';
-const DEPARTURE_END_DATE = '2023-10-16';
+const DEPARTURE_START_DATE = process.env.START_DATE || '2023-10-27';
+const DEPARTURE_END_DATE = process.env.END_DATE || '2023-11-05';
 const BUDGET = process.env.BUDGET ? Number(process.env.BUDGET) : 440;
+const ORIGIN = 'PAR';
+const DESTINATION = 'CNX';
 
 let ACCESS_TOKEN = '';
 
@@ -119,9 +121,6 @@ const checkFlightsForSpecificOptions = async (origin, destination, departureDate
 }
 
 const checkFlightsForSpecificOptionsByPost = async (origin, destination, departureDate) => {
-  console.log('departureDate:', departureDate);
-  console.log('destination:', destination);
-  console.log('origin:', origin);
   const data = {
     currencyCode: "EUR",
     originDestinations: [
@@ -182,12 +181,19 @@ const launchScript = async () => {
   // for the date range: 2023-09-28 to 2023-10-14
   // for each day, check flights from PAR to CNX
   let date = DEPARTURE_START_DATE;
+  let i = 0;
+
   do {
-    console.log('date to check', date);
-    const flights = await checkFlightsForSpecificOptionsByPost('PAR', 'CNX', date);
-    console.log('flights:', flights.length);
+    i++;
+    console.log(`date ${i}:`, date);
+    const flights = await checkFlightsForSpecificOptionsByPost(ORIGIN, DESTINATION, date);
+    if (flights.length) {
+      console.log('flights:', flights.length);
+    }
     const flightsOnBudget = getFlightsUnderBudget(flights);
-    console.log('flightsOnBudget:', flightsOnBudget.length);
+    if (flightsOnBudget.length) {
+      console.log('flightsOnBudget:', flightsOnBudget.length);
+    }
     if (!flightsOnBudget.length) {
       date = getNextDate(date ,3);
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -210,6 +216,10 @@ const launchScript = async () => {
     date = getNextDate(date, 3);
 
     await new Promise(resolve => setTimeout(resolve, 100));
+    if (i > 10) {
+      console.log('ERROR: too many iterations, stopping script');
+      break;
+    }
   } while (date !== DEPARTURE_END_DATE)
 
   console.log('end');
